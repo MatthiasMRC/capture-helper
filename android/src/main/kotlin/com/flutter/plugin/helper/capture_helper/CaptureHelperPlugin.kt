@@ -20,6 +20,7 @@ class CaptureHelperPlugin: FlutterPlugin, ActivityAware, PluginRegistry.Activity
     private var activity: Activity? = null
     private var pendingResult: BasicMessageChannel.Reply<Any?>? = null
     private var outputFormat: String = "jpeg"
+    private var pageLimit: Int? = null
     private lateinit var scanChannel: BasicMessageChannel<Any?>
     private lateinit var availabilityChannel: BasicMessageChannel<Any?>
 
@@ -83,10 +84,11 @@ class CaptureHelperPlugin: FlutterPlugin, ActivityAware, PluginRegistry.Activity
         }
 
         try {
-            // Extraire le format de sortie des options
+            // Extraire le format de sortie et la limite de pages des options
             @Suppress("UNCHECKED_CAST")
             val options = message as? Map<String, Any?>
             outputFormat = options?.get("outputFormat") as? String ?: "jpeg"
+            pageLimit = (options?.get("pageLimit") as? Number)?.toInt()
 
             startScanning(reply)
         } catch (e: Exception) {
@@ -99,9 +101,10 @@ class CaptureHelperPlugin: FlutterPlugin, ActivityAware, PluginRegistry.Activity
     }
 
     private fun startScanning(reply: BasicMessageChannel.Reply<Any?>) {
+        val effectivePageLimit = pageLimit?.coerceIn(1, 10) ?: 10
         val options = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(false)
-            .setPageLimit(10)
+            .setPageLimit(effectivePageLimit)
             .setResultFormats(
                 GmsDocumentScannerOptions.RESULT_FORMAT_JPEG,
                 GmsDocumentScannerOptions.RESULT_FORMAT_PDF

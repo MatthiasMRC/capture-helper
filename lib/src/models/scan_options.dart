@@ -16,28 +16,38 @@ class CaptureHelperScanOptions {
   /// - PNG : Plus lourd, compression sans perte
   final OutputFormat outputFormat;
 
+  /// Nombre maximum de pages à scanner (1-10)
+  /// - null : pas de limite (jusqu'à 10 pages par défaut)
+  /// - 1 : le scanner se ferme automatiquement après la première capture
+  /// - 2-10 : le scanner se ferme après le nombre de pages spécifié
+  final int? pageLimit;
+
   const CaptureHelperScanOptions({
     this.autoCompress = false,
     this.compressionQuality = 80,
     this.outputFormat = OutputFormat.jpeg,
-  }) : assert(compressionQuality >= 0 && compressionQuality <= 100, 'compressionQuality doit être entre 0 et 100');
+    this.pageLimit,
+  })  : assert(compressionQuality >= 0 && compressionQuality <= 100, 'compressionQuality doit être entre 0 et 100'),
+        assert(pageLimit == null || (pageLimit >= 1 && pageLimit <= 10), 'pageLimit doit être entre 1 et 10');
 
   /// Crée une copie avec des valeurs modifiées
   CaptureHelperScanOptions copyWith({
     bool? autoCompress,
     int? compressionQuality,
     OutputFormat? outputFormat,
+    int? pageLimit,
   }) {
     return CaptureHelperScanOptions(
       autoCompress: autoCompress ?? this.autoCompress,
       compressionQuality: compressionQuality ?? this.compressionQuality,
       outputFormat: outputFormat ?? this.outputFormat,
+      pageLimit: pageLimit ?? this.pageLimit,
     );
   }
 
   @override
   String toString() =>
-      'CaptureHelperScanOptions(autoCompress: $autoCompress, compressionQuality: $compressionQuality, outputFormat: $outputFormat)';
+      'CaptureHelperScanOptions(autoCompress: $autoCompress, compressionQuality: $compressionQuality, outputFormat: $outputFormat, pageLimit: $pageLimit)';
 
   @override
   bool operator ==(Object other) {
@@ -46,9 +56,10 @@ class CaptureHelperScanOptions {
     return other is CaptureHelperScanOptions &&
         other.autoCompress == autoCompress &&
         other.compressionQuality == compressionQuality &&
-        other.outputFormat == outputFormat;
+        other.outputFormat == outputFormat &&
+        other.pageLimit == pageLimit;
   }
 
   @override
-  int get hashCode => autoCompress.hashCode ^ compressionQuality.hashCode ^ outputFormat.hashCode;
+  int get hashCode => autoCompress.hashCode ^ compressionQuality.hashCode ^ outputFormat.hashCode ^ pageLimit.hashCode;
 }

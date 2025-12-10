@@ -56,7 +56,12 @@ data class ScanOptions (
   /** Qualité de compression (0-100) si autoCompress est true */
   val compressionQuality: Long,
   /** Format de sortie : 'jpeg' ou 'png' */
-  val outputFormat: String
+  val outputFormat: String,
+  /**
+   * Nombre maximum de pages à scanner (1-10, null = illimité jusqu'à 10)
+   * Si défini à 1, le scanner se fermera automatiquement après la première capture
+   */
+  val pageLimit: Long? = null
 )
  {
   companion object {
@@ -64,7 +69,8 @@ data class ScanOptions (
       val autoCompress = pigeonVar_list[0] as Boolean
       val compressionQuality = pigeonVar_list[1] as Long
       val outputFormat = pigeonVar_list[2] as String
-      return ScanOptions(autoCompress, compressionQuality, outputFormat)
+      val pageLimit = pigeonVar_list[3] as Long?
+      return ScanOptions(autoCompress, compressionQuality, outputFormat, pageLimit)
     }
   }
   fun toList(): List<Any?> {
@@ -72,6 +78,7 @@ data class ScanOptions (
       autoCompress,
       compressionQuality,
       outputFormat,
+      pageLimit,
     )
   }
 }

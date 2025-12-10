@@ -67,6 +67,7 @@ class CaptureHelper {
         autoCompress: options.autoCompress,
         compressionQuality: options.compressionQuality,
         outputFormat: options.outputFormat.name, // 'jpeg' ou 'png'
+        pageLimit: options.pageLimit,
       );
 
       final pigeonResult = await _api.scanDocument(pigeonOptions);

@@ -35,6 +35,7 @@ class _HomePageState extends State<HomePage> {
   bool _isScanningAvailable = false;
   String? _statusMessage;
   OutputFormat _selectedFormat = OutputFormat.jpeg;
+  int? _pageLimit = 1; // Par défaut, capturer une seule page
 
   @override
   void initState() {
@@ -69,6 +70,7 @@ class _HomePageState extends State<HomePage> {
           autoCompress: false,
           compressionQuality: 80,
           outputFormat: _selectedFormat,
+          pageLimit: _pageLimit,
         ),
       );
 
@@ -166,6 +168,28 @@ class _HomePageState extends State<HomePage> {
                     _selectedFormat = newSelection.first;
                   });
                 },
+              ),
+              const SizedBox(height: 16),
+              // Sélecteur de limite de pages
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Pages: '),
+                  DropdownButton<int?>(
+                    value: _pageLimit,
+                    items: [
+                      const DropdownMenuItem(value: 1, child: Text('1 page')),
+                      const DropdownMenuItem(value: 2, child: Text('2 pages')),
+                      const DropdownMenuItem(value: 5, child: Text('5 pages')),
+                      const DropdownMenuItem(value: null, child: Text('Illimité')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _pageLimit = value;
+                      });
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               if (_isScanning)

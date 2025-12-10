@@ -3,6 +3,7 @@ import UIKit
 
 public class CaptureHelperPlugin: NSObject, FlutterPlugin, DocumentScannerApi {
     private var scannerService: DocumentScannerService?
+    private var singlePageCoordinator: SinglePageScannerCoordinator?
     private let imageCompressionService = ImageCompressionService()
     private let pdfCompressionService = PDFCompressionService()
 
@@ -50,54 +51,128 @@ public class CaptureHelperPlugin: NSObject, FlutterPlugin, DocumentScannerApi {
             return
         }
 
-        // Créer le service de numérisation
-        if #available(iOS 13.0, *) {
-            let scanner = DocumentScannerService(
-                presentingViewController: viewController,
-                outputFormat: options.outputFormat
-            )
-            self.scannerService = scanner
-
-            scanner.scanDocument { [weak self] result in
-                guard let self = self else { return }
-
-                switch result {
-                case .success(let urls):
-                    var imagePaths = urls.map { $0.path }
-
-                    // Compression automatique si demandée
-                    if options.autoCompress {
-                        imagePaths = self.compressScannedImages(
-                            imagePaths,
-                            quality: Int(options.compressionQuality)
-                        )
-                    }
-
-                    let scanResult = ScanResult(
-                        imagePaths: imagePaths,
-                        success: true,
-                        errorMessage: nil
-                    )
-                    completion(.success(scanResult))
-
-                case .failure(let error):
-                    let scanResult = ScanResult(
-                        imagePaths: [],
-                        success: false,
-                        errorMessage: error.localizedDescription
-                    )
-                    completion(.success(scanResult))
-                }
-
-                self.scannerService = nil
-            }
-        } else {
+        // Vérifier iOS 13+
+        guard #available(iOS 13.0, *) else {
             let scanResult = ScanResult(
                 imagePaths: [],
                 success: false,
                 errorMessage: "Document scanning requires iOS 13.0 or later"
             )
             completion(.success(scanResult))
+            return
+        }
+
+        // Utiliser le scanner single page personnalisé si pageLimit == 1
+        let pageLimit = options.pageLimit.map { Int($0) }
+        if pageLimit == 1 {
+            performSinglePageScan(
+                viewController: viewController,
+                options: options,
+                completion: completion
+            )
+        } else {
+            performMultiPageScan(
+                viewController: viewController,
+                options: options,
+                completion: completion
+            )
+        }
+    }
+
+    /// Scan single page avec le scanner personnalisé (capture manuelle + ajustement + preview)
+    @available(iOS 13.0, *)
+    private func performSinglePageScan(
+        viewController: UIViewController,
+        options: ScanOptions,
+        completion: @escaping (Result<ScanResult, Error>) -> Void
+    ) {
+        let coordinator = SinglePageScannerCoordinator(presentingViewController: viewController)
+        coordinator.outputFormat = options.outputFormat
+        self.singlePageCoordinator = coordinator
+
+        coordinator.startScanning { [weak self] result in
+            guard let self = self else { return }
+
+            switch result {
+            case .success(let scanResult):
+                var imagePath = scanResult.outputURL.path
+
+                // Compression automatique si demandée
+                if options.autoCompress {
+                    let compressed = self.compressScannedImages(
+                        [imagePath],
+                        quality: Int(options.compressionQuality)
+                    )
+                    imagePath = compressed.first ?? imagePath
+                }
+
+                let result = ScanResult(
+                    imagePaths: [imagePath],
+                    success: true,
+                    errorMessage: nil
+                )
+                completion(.success(result))
+
+            case .failure(let error):
+                let isCancelled = (error as? SinglePageScannerCoordinator.ScanError) == .cancelled
+                let result = ScanResult(
+                    imagePaths: [],
+                    success: false,
+                    errorMessage: isCancelled ? "User cancelled" : error.localizedDescription
+                )
+                completion(.success(result))
+            }
+
+            self.singlePageCoordinator = nil
+        }
+    }
+
+    /// Scan multi-pages avec VNDocumentCameraViewController (comportement original)
+    @available(iOS 13.0, *)
+    private func performMultiPageScan(
+        viewController: UIViewController,
+        options: ScanOptions,
+        completion: @escaping (Result<ScanResult, Error>) -> Void
+    ) {
+        let scanner = DocumentScannerService(
+            presentingViewController: viewController,
+            outputFormat: options.outputFormat,
+            pageLimit: options.pageLimit.map { Int($0) }
+        )
+        self.scannerService = scanner
+
+        scanner.scanDocument { [weak self] result in
+            guard let self = self else { return }
+
+            switch result {
+            case .success(let urls):
+                var imagePaths = urls.map { $0.path }
+
+                // Compression automatique si demandée
+                if options.autoCompress {
+                    imagePaths = self.compressScannedImages(
+                        imagePaths,
+                        quality: Int(options.compressionQuality)
+                    )
+                }
+
+                let scanResult = ScanResult(
+                    imagePaths: imagePaths,
+                    success: true,
+                    errorMessage: nil
+                )
+                completion(.success(scanResult))
+
+            case .failure(let error):
+                let scanResult = ScanResult(
+                    imagePaths: [],
+                    success: false,
+                    errorMessage: error.localizedDescription
+                )
+                completion(.success(scanResult))
+            }
+
+            self.scannerService = nil
         }
     }
 

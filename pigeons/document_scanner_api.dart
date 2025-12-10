@@ -21,10 +21,15 @@ class ScanOptions {
   /// Format de sortie : 'jpeg' ou 'png'
   final String outputFormat;
 
+  /// Nombre maximum de pages à scanner (1-10, null = illimité jusqu'à 10)
+  /// Si défini à 1, le scanner se fermera automatiquement après la première capture
+  final int? pageLimit;
+
   ScanOptions({
     required this.autoCompress,
     required this.compressionQuality,
     required this.outputFormat,
+    this.pageLimit,
   });
 }
 
