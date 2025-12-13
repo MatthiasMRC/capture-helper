@@ -38,12 +38,15 @@ class DocumentDetector {
         // Limiter la fréquence de détection
         let now = Date()
         guard now.timeIntervalSince(lastDetectionTime) >= minDetectionInterval else {
+            // Ne pas appeler completion pour éviter de reset l'état
             return
         }
         lastDetectionTime = now
 
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            completion(nil)
+            DispatchQueue.main.async {
+                completion(nil)
+            }
             return
         }
 
@@ -75,6 +78,7 @@ class DocumentDetector {
     private func detectWithDocumentSegmentation(pixelBuffer: CVPixelBuffer, completion: @escaping (DetectedDocument?) -> Void) {
         let request = VNDetectDocumentSegmentationRequest()
 
+        // .right correspond à l'orientation de la caméra arrière en mode portrait
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
 
         DispatchQueue.global(qos: .userInteractive).async {
@@ -134,6 +138,7 @@ class DocumentDetector {
 
     private func detectWithRectangles(pixelBuffer: CVPixelBuffer, completion: @escaping (DetectedDocument?) -> Void) {
         let request = createRectangleRequest()
+        // .right correspond à l'orientation de la caméra arrière en mode portrait
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
 
         DispatchQueue.global(qos: .userInteractive).async {

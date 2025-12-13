@@ -2,8 +2,7 @@ import Flutter
 import UIKit
 
 public class CaptureHelperPlugin: NSObject, FlutterPlugin, DocumentScannerApi {
-    private var scannerService: DocumentScannerService?
-    private var singlePageCoordinator: SinglePageScannerCoordinator?
+    private var scannerCoordinator: DocumentScannerCoordinator?
     private let imageCompressionService = ImageCompressionService()
     private let pdfCompressionService = PDFCompressionService()
 
@@ -62,91 +61,29 @@ public class CaptureHelperPlugin: NSObject, FlutterPlugin, DocumentScannerApi {
             return
         }
 
-        // Utiliser le scanner single page personnalisé si pageLimit == 1
-        let pageLimit = options.pageLimit.map { Int($0) }
-        if pageLimit == 1 {
-            performSinglePageScan(
-                viewController: viewController,
-                options: options,
-                completion: completion
-            )
-        } else {
-            performMultiPageScan(
-                viewController: viewController,
-                options: options,
-                completion: completion
-            )
-        }
-    }
-
-    /// Scan single page avec le scanner personnalisé (capture manuelle + ajustement + preview)
-    @available(iOS 13.0, *)
-    private func performSinglePageScan(
-        viewController: UIViewController,
-        options: ScanOptions,
-        completion: @escaping (Result<ScanResult, Error>) -> Void
-    ) {
-        let coordinator = SinglePageScannerCoordinator(presentingViewController: viewController)
-        coordinator.outputFormat = options.outputFormat
-        self.singlePageCoordinator = coordinator
-
-        coordinator.startScanning { [weak self] result in
-            guard let self = self else { return }
-
-            switch result {
-            case .success(let scanResult):
-                var imagePath = scanResult.outputURL.path
-
-                // Compression automatique si demandée
-                if options.autoCompress {
-                    let compressed = self.compressScannedImages(
-                        [imagePath],
-                        quality: Int(options.compressionQuality)
-                    )
-                    imagePath = compressed.first ?? imagePath
-                }
-
-                let result = ScanResult(
-                    imagePaths: [imagePath],
-                    success: true,
-                    errorMessage: nil
-                )
-                completion(.success(result))
-
-            case .failure(let error):
-                let isCancelled = (error as? SinglePageScannerCoordinator.ScanError) == .cancelled
-                let result = ScanResult(
-                    imagePaths: [],
-                    success: false,
-                    errorMessage: isCancelled ? "User cancelled" : error.localizedDescription
-                )
-                completion(.success(result))
-            }
-
-            self.singlePageCoordinator = nil
-        }
-    }
-
-    /// Scan multi-pages avec VNDocumentCameraViewController (comportement original)
-    @available(iOS 13.0, *)
-    private func performMultiPageScan(
-        viewController: UIViewController,
-        options: ScanOptions,
-        completion: @escaping (Result<ScanResult, Error>) -> Void
-    ) {
-        let scanner = DocumentScannerService(
-            presentingViewController: viewController,
-            outputFormat: options.outputFormat,
-            pageLimit: options.pageLimit.map { Int($0) }
+        // Utiliser le nouveau coordinateur unifié
+        performUnifiedScan(
+            viewController: viewController,
+            options: options,
+            completion: completion
         )
-        self.scannerService = scanner
+    }
 
-        scanner.scanDocument { [weak self] result in
+    /// Scan unifié avec le nouveau coordinateur (tous les modes)
+    @available(iOS 13.0, *)
+    private func performUnifiedScan(
+        viewController: UIViewController,
+        options: ScanOptions,
+        completion: @escaping (Result<ScanResult, Error>) -> Void
+    ) {
+        let coordinator = DocumentScannerCoordinator(presentingViewController: viewController)
+        self.scannerCoordinator = coordinator
+
+        coordinator.startScanning(with: options) { [weak self] result in
             guard let self = self else { return }
 
-            switch result {
-            case .success(let urls):
-                var imagePaths = urls.map { $0.path }
+            if result.success {
+                var imagePaths = result.imageURLs.map { $0.path }
 
                 // Compression automatique si demandée
                 if options.autoCompress {
@@ -162,17 +99,16 @@ public class CaptureHelperPlugin: NSObject, FlutterPlugin, DocumentScannerApi {
                     errorMessage: nil
                 )
                 completion(.success(scanResult))
-
-            case .failure(let error):
+            } else {
                 let scanResult = ScanResult(
                     imagePaths: [],
                     success: false,
-                    errorMessage: error.localizedDescription
+                    errorMessage: result.errorMessage ?? "Unknown error"
                 )
                 completion(.success(scanResult))
             }
 
-            self.scannerService = nil
+            self.scannerCoordinator = nil
         }
     }
 

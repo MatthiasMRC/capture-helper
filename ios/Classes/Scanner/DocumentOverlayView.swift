@@ -18,7 +18,7 @@ class DocumentOverlayView: UIView {
     }
 
     /// Couleur de l'overlay quand aucun document n'est détecté
-    var dimColor: UIColor = UIColor.black.withAlphaComponent(0.5)
+    var dimColor: UIColor = UIColor.black.withAlphaComponent(0.3)
 
     /// Points actuels du document (en coordonnées de la vue)
     private var currentPoints: [CGPoint] = []
@@ -47,9 +47,13 @@ class DocumentOverlayView: UIView {
         // Layer de forme (bordure du document)
         shapeLayer.fillColor = detectedColor.cgColor
         shapeLayer.strokeColor = borderColor.cgColor
-        shapeLayer.lineWidth = 3
+        shapeLayer.lineWidth = 4
         shapeLayer.lineCap = .round
         shapeLayer.lineJoin = .round
+        shapeLayer.shadowColor = UIColor.black.cgColor
+        shapeLayer.shadowOffset = CGSize(width: 0, height: 0)
+        shapeLayer.shadowOpacity = 0.5
+        shapeLayer.shadowRadius = 3
         layer.addSublayer(shapeLayer)
     }
 

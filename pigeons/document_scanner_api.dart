@@ -10,8 +10,23 @@ import 'package:pigeon/pigeon.dart';
     kotlinOptions: KotlinOptions(),
   ),
 )
+
+/// Mode de capture du scanner
+enum ScanMode {
+  /// Capture automatique après stabilisation + bouton manuel disponible
+  auto,
+  /// Capture manuelle uniquement (bouton)
+  manual,
+}
+
 /// Options pour la numérisation de documents
 class ScanOptions {
+  /// Mode de capture (auto ou manuel)
+  final ScanMode scanMode;
+
+  /// Nombre de pages à scanner (1 = single page, >1 = multi-pages)
+  final int pageLimit;
+
   /// Si true, compresse automatiquement l'image après la capture
   final bool autoCompress;
 
@@ -21,15 +36,54 @@ class ScanOptions {
   /// Format de sortie : 'jpeg' ou 'png'
   final String outputFormat;
 
-  /// Nombre maximum de pages à scanner (1-10, null = illimité jusqu'à 10)
-  /// Si défini à 1, le scanner se fermera automatiquement après la première capture
-  final int? pageLimit;
+  /// Seuil minimum de netteté (0-100, 0 = désactivé)
+  final int minSharpnessScore;
+
+  /// Seuil minimum de luminosité (0-100, 0 = désactivé)
+  final int minBrightnessScore;
+
+  /// Surface minimum du document dans l'image (0-100%, 0 = désactivé)
+  final int minDocumentCoverage;
+
+  /// Délai en secondes avant capture automatique (mode auto uniquement)
+  final double autoCaptureDelay;
 
   ScanOptions({
+    required this.scanMode,
+    required this.pageLimit,
     required this.autoCompress,
     required this.compressionQuality,
     required this.outputFormat,
-    this.pageLimit,
+    required this.minSharpnessScore,
+    required this.minBrightnessScore,
+    required this.minDocumentCoverage,
+    required this.autoCaptureDelay,
+  });
+}
+
+/// Informations de qualité d'une image scannée
+class ImageQuality {
+  /// Score de netteté (0-100)
+  final int sharpnessScore;
+
+  /// Score de luminosité (0-100)
+  final int brightnessScore;
+
+  /// Pourcentage de couverture du document (0-100)
+  final int documentCoverage;
+
+  /// Si l'image passe tous les critères de qualité
+  final bool isAcceptable;
+
+  /// Message décrivant le problème de qualité (si non acceptable)
+  final String? qualityIssue;
+
+  ImageQuality({
+    required this.sharpnessScore,
+    required this.brightnessScore,
+    required this.documentCoverage,
+    required this.isAcceptable,
+    this.qualityIssue,
   });
 }
 

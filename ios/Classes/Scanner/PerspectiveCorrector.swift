@@ -1,6 +1,23 @@
 import UIKit
 import CoreImage
 
+// Extension pour convertir UIImage.Orientation en EXIF orientation
+extension UIImage.Orientation {
+    var exifOrientation: Int {
+        switch self {
+        case .up: return 1
+        case .down: return 3
+        case .left: return 8
+        case .right: return 6
+        case .upMirrored: return 2
+        case .downMirrored: return 4
+        case .leftMirrored: return 5
+        case .rightMirrored: return 7
+        @unknown default: return 1
+        }
+    }
+}
+
 /// Corrige la perspective d'un document pour le rendre plat
 @available(iOS 13.0, *)
 class PerspectiveCorrector {
@@ -20,18 +37,28 @@ class PerspectiveCorrector {
         bottomLeft: CGPoint,
         bottomRight: CGPoint
     ) -> UIImage? {
-        guard let ciImage = CIImage(image: image) else {
+        // Créer CIImage avec l'orientation correcte
+        guard let cgImage = image.cgImage else {
             return nil
         }
 
-        // Convertir les coordonnées UIKit (origine en haut à gauche)
-        // vers les coordonnées CoreImage (origine en bas à gauche)
+        // Appliquer l'orientation de l'UIImage au CIImage
+        var ciImage = CIImage(cgImage: cgImage)
+        ciImage = ciImage.oriented(forExifOrientation: Int32(image.imageOrientation.exifOrientation))
+
+        let imageWidth = ciImage.extent.width
         let imageHeight = ciImage.extent.height
 
-        let ciTopLeft = CGPoint(x: topLeft.x, y: imageHeight - topLeft.y)
-        let ciTopRight = CGPoint(x: topRight.x, y: imageHeight - topRight.y)
-        let ciBottomLeft = CGPoint(x: bottomLeft.x, y: imageHeight - bottomLeft.y)
-        let ciBottomRight = CGPoint(x: bottomRight.x, y: imageHeight - bottomRight.y)
+        // Recalculer les coordonnées en fonction de la taille réelle après orientation
+        let scaleX = imageWidth / image.size.width
+        let scaleY = imageHeight / image.size.height
+
+        // Convertir les coordonnées UIKit (origine en haut à gauche)
+        // vers les coordonnées CoreImage (origine en bas à gauche)
+        let ciTopLeft = CGPoint(x: topLeft.x * scaleX, y: imageHeight - topLeft.y * scaleY)
+        let ciTopRight = CGPoint(x: topRight.x * scaleX, y: imageHeight - topRight.y * scaleY)
+        let ciBottomLeft = CGPoint(x: bottomLeft.x * scaleX, y: imageHeight - bottomLeft.y * scaleY)
+        let ciBottomRight = CGPoint(x: bottomRight.x * scaleX, y: imageHeight - bottomRight.y * scaleY)
 
         // Appliquer le filtre de correction de perspective
         guard let filter = CIFilter(name: "CIPerspectiveCorrection") else {
@@ -50,11 +77,11 @@ class PerspectiveCorrector {
 
         // Convertir CIImage en UIImage
         let context = CIContext(options: [.useSoftwareRenderer: false])
-        guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
+        guard let finalCGImage = context.createCGImage(outputImage, from: outputImage.extent) else {
             return nil
         }
 
-        return UIImage(cgImage: cgImage)
+        return UIImage(cgImage: finalCGImage)
     }
 
     /// Applique une correction de perspective en utilisant des points normalisés (0-1)

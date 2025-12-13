@@ -15,14 +15,33 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
+/// Mode de capture du scanner
+enum ScanMode {
+  /// Capture automatique après stabilisation + bouton manuel disponible
+  auto,
+  /// Capture manuelle uniquement (bouton)
+  manual,
+}
+
 /// Options pour la numérisation de documents
 class ScanOptions {
   ScanOptions({
+    required this.scanMode,
+    required this.pageLimit,
     required this.autoCompress,
     required this.compressionQuality,
     required this.outputFormat,
-    this.pageLimit,
+    required this.minSharpnessScore,
+    required this.minBrightnessScore,
+    required this.minDocumentCoverage,
+    required this.autoCaptureDelay,
   });
+
+  /// Mode de capture (auto ou manuel)
+  ScanMode scanMode;
+
+  /// Nombre de pages à scanner (1 = single page, >1 = multi-pages)
+  int pageLimit;
 
   /// Si true, compresse automatiquement l'image après la capture
   bool autoCompress;
@@ -33,26 +52,91 @@ class ScanOptions {
   /// Format de sortie : 'jpeg' ou 'png'
   String outputFormat;
 
-  /// Nombre maximum de pages à scanner (1-10, null = illimité jusqu'à 10)
-  /// Si défini à 1, le scanner se fermera automatiquement après la première capture
-  int? pageLimit;
+  /// Seuil minimum de netteté (0-100, 0 = désactivé)
+  int minSharpnessScore;
+
+  /// Seuil minimum de luminosité (0-100, 0 = désactivé)
+  int minBrightnessScore;
+
+  /// Surface minimum du document dans l'image (0-100%, 0 = désactivé)
+  int minDocumentCoverage;
+
+  /// Délai en secondes avant capture automatique (mode auto uniquement)
+  double autoCaptureDelay;
 
   Object encode() {
     return <Object?>[
+      scanMode,
+      pageLimit,
       autoCompress,
       compressionQuality,
       outputFormat,
-      pageLimit,
+      minSharpnessScore,
+      minBrightnessScore,
+      minDocumentCoverage,
+      autoCaptureDelay,
     ];
   }
 
   static ScanOptions decode(Object result) {
     result as List<Object?>;
     return ScanOptions(
-      autoCompress: result[0]! as bool,
-      compressionQuality: result[1]! as int,
-      outputFormat: result[2]! as String,
-      pageLimit: result[3] as int?,
+      scanMode: result[0]! as ScanMode,
+      pageLimit: result[1]! as int,
+      autoCompress: result[2]! as bool,
+      compressionQuality: result[3]! as int,
+      outputFormat: result[4]! as String,
+      minSharpnessScore: result[5]! as int,
+      minBrightnessScore: result[6]! as int,
+      minDocumentCoverage: result[7]! as int,
+      autoCaptureDelay: result[8]! as double,
+    );
+  }
+}
+
+/// Informations de qualité d'une image scannée
+class ImageQuality {
+  ImageQuality({
+    required this.sharpnessScore,
+    required this.brightnessScore,
+    required this.documentCoverage,
+    required this.isAcceptable,
+    this.qualityIssue,
+  });
+
+  /// Score de netteté (0-100)
+  int sharpnessScore;
+
+  /// Score de luminosité (0-100)
+  int brightnessScore;
+
+  /// Pourcentage de couverture du document (0-100)
+  int documentCoverage;
+
+  /// Si l'image passe tous les critères de qualité
+  bool isAcceptable;
+
+  /// Message décrivant le problème de qualité (si non acceptable)
+  String? qualityIssue;
+
+  Object encode() {
+    return <Object?>[
+      sharpnessScore,
+      brightnessScore,
+      documentCoverage,
+      isAcceptable,
+      qualityIssue,
+    ];
+  }
+
+  static ImageQuality decode(Object result) {
+    result as List<Object?>;
+    return ImageQuality(
+      sharpnessScore: result[0]! as int,
+      brightnessScore: result[1]! as int,
+      documentCoverage: result[2]! as int,
+      isAcceptable: result[3]! as bool,
+      qualityIssue: result[4] as String?,
     );
   }
 }
@@ -147,14 +231,20 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is ScanOptions) {
+    }    else if (value is ScanMode) {
       buffer.putUint8(129);
-      writeValue(buffer, value.encode());
-    }    else if (value is ScanResult) {
+      writeValue(buffer, value.index);
+    }    else if (value is ScanOptions) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is CompressionResult) {
+    }    else if (value is ImageQuality) {
       buffer.putUint8(131);
+      writeValue(buffer, value.encode());
+    }    else if (value is ScanResult) {
+      buffer.putUint8(132);
+      writeValue(buffer, value.encode());
+    }    else if (value is CompressionResult) {
+      buffer.putUint8(133);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -165,10 +255,15 @@ class _PigeonCodec extends StandardMessageCodec {
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
       case 129: 
-        return ScanOptions.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : ScanMode.values[value];
       case 130: 
-        return ScanResult.decode(readValue(buffer)!);
+        return ScanOptions.decode(readValue(buffer)!);
       case 131: 
+        return ImageQuality.decode(readValue(buffer)!);
+      case 132: 
+        return ScanResult.decode(readValue(buffer)!);
+      case 133: 
         return CompressionResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

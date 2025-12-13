@@ -169,7 +169,7 @@ class SinglePageScannerCoordinator: NSObject {
 @available(iOS 13.0, *)
 extension SinglePageScannerCoordinator: CaptureViewControllerDelegate {
 
-    func captureViewController(_ controller: CaptureViewController, didCaptureImage image: UIImage, withDocument document: DocumentDetector.DetectedDocument?) {
+    func captureViewController(_ controller: CaptureViewController, didCaptureImage image: UIImage, withDocument document: DocumentDetector.DetectedDocument?, quality: ImageQualityAnalyzer.QualityResult) {
         showAdjustmentScreen(image: image, detectedDocument: document)
     }
 
