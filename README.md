@@ -478,7 +478,7 @@ lib/
 │   └── generated/                   # Code généré par Pigeon
 │       └── document_scanner_api.g.dart
 
-ios/Classes/
+ios/capture_helper/Sources/capture_helper/   # Swift Package (SPM + CocoaPods)
 ├── CaptureHelperPlugin.swift        # Plugin principal iOS
 ├── Scanner/                         # Module de scan personnalisé
 │   ├── CaptureViewController.swift  # Écran de capture avec overlay
